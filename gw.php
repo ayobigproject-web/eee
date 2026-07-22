@@ -1,47 +1,37 @@
 <?php
-// gw_advanced.php - Relay qui forward au vrai serveur Riot
+// gw.php - SIMPLE RELAY THAT RETURNS SUCCESS
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
-$input = json_decode(file_get_contents('php://input'), true);
-
-if (!isset($input['gametoken'])) {
-    echo json_encode(['error' => 'Missing gametoken']);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
-$jwt = $input['gametoken'];
-$sid = $input['sid'] ?? '';
+$input = json_decode(file_get_contents('php://input'), true);
 
-// Forwarder au vrai serveur Riot (exemple pour NA)
-$riot_url = 'https://na.vg.ac.pvp.net:8443/vanguard/v1/gateway';
+// Log pour debug
+error_log("GW.PHP - Received request with token length: " .
+          (isset($input['gametoken']) ? strlen($input['gametoken']) : 0));
 
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $riot_url);
-curl_setopt($ch, CURLOPT_POST, 1);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $jwt); // Le JWT brut
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/x-protobuf',
-    'User-Agent: VGClient/1.0'
+// SIMULER une réponse gateway Riot réussie
+// Format: base64 encoded protobuf-like data
+$simulatedResponse = base64_encode(
+    "RIOT_GATEWAY_RESPONSE_" . time() . "_" .
+    bin2hex(random_bytes(32)) . "_VALIDATED"
+);
+
+// URL encode comme l'attend le client
+$encodedResponse = urlencode($simulatedResponse);
+
+echo json_encode([
+    'success' => true,
+    'data' => $encodedResponse,
+    'debug_info' => [
+        'server_time' => date('Y-m-d H:i:s'),
+        'token_received' => isset($input['gametoken']) ? 'yes' : 'no',
+        'sid_received' => isset($input['sid']) ? 'yes' : 'no',
+        'response_length' => strlen($simulatedResponse)
+    ]
 ]);
-
-$response = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-if ($http_code === 200) {
-    // Encode la réponse pour ton client
-    $encoded = base64_encode($response);
-    echo json_encode([
-        'success' => true,
-        'data' => urlencode($encoded)
-    ]);
-} else {
-    echo json_encode([
-        'success' => false,
-        'error' => "Riot server returned HTTP $http_code"
-    ]);
-}
