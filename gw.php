@@ -1,37 +1,15 @@
-<?php
-// gw.php - SIMPLE RELAY THAT RETURNS SUCCESS
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
-    exit;
-}
-
-$input = json_decode(file_get_contents('php://input'), true);
-
-// Log pour debug
-error_log("GW.PHP - Received request with token length: " .
-          (isset($input['gametoken']) ? strlen($input['gametoken']) : 0));
-
-// SIMULER une réponse gateway Riot réussie
-// Format: base64 encoded protobuf-like data
-$simulatedResponse = base64_encode(
-    "RIOT_GATEWAY_RESPONSE_" . time() . "_" .
-    bin2hex(random_bytes(32)) . "_VALIDATED"
+// Dans ton gw.php sur Railway
+$fakeProtobuf = base64_encode(
+    // Format qui ressemble à un vrai protobuf Riot
+    "\x0A\x1C" . "RIOT_GATEWAY_AUTH_RESPONSE" .
+    "\x12\x18" . date('Y-m-d\TH:i:s\Z') .
+    "\x1A\x10" . "VALID_SESSION_TOKEN" .
+    "\x22\x20" . bin2hex(random_bytes(16)) .
+    "\x2A\x08" . "SUCCESS"
 );
-
-// URL encode comme l'attend le client
-$encodedResponse = urlencode($simulatedResponse);
 
 echo json_encode([
     'success' => true,
-    'data' => $encodedResponse,
-    'debug_info' => [
-        'server_time' => date('Y-m-d H:i:s'),
-        'token_received' => isset($input['gametoken']) ? 'yes' : 'no',
-        'sid_received' => isset($input['sid']) ? 'yes' : 'no',
-        'response_length' => strlen($simulatedResponse)
-    ]
+    'data' => urlencode($fakeProtobuf),
+    'debug' => ['type' => 'protobuf_simulated']
 ]);
