@@ -110,17 +110,15 @@ $rg_envelope = $rg_header . $timestamp_bytes . $iv . $payload . $mac;
 // Vérifier la taille finale
 $envelope_length = strlen($rg_envelope);
 
-echo json_encode([
-    'success' => true,
-    'data' => urlencode(base64_encode($rg_envelope)),
-    'debug' => [
-        'type' => 'vgk_protobuf_v2_realistic',
-        'protobuf_length' => $protobuf_length,
-        'rg_envelope_length' => $envelope_length,
-        'sid' => $sid,
-        'timestamp' => time(),
-        'note' => 'Based on analysis from New Text Document.txt'
-    ]
-]);
+// Convertir base64 standard en base64 URL-safe (pour compatibilité avec b64_url_decode)
+$b64_data = base64_encode($rg_envelope);
+$b64_urlsafe = strtr($b64_data, '+/', '-_'); // Remplacer + par - et / par _
+$b64_urlsafe = rtrim($b64_urlsafe, '='); // Enlever le padding (optionnel)
+
+// Solution SIMPLE : Renvoyer juste le base64 directement, sans JSON
+// Le client C++ s'attend à du JSON, mais notre jstr() simple a des problèmes avec les guillemets dans le base64
+// On va envoyer un format simple et compatible : {"payload":"<base64>"}
+
+echo "{\"payload\":\"" . $b64_urlsafe . "\"}";
 
 ?>
